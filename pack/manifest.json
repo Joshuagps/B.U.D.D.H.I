@@ -1,0 +1,101 @@
+{
+ "format": 2,
+ "total": 1663411,
+ "idBase": 100,
+ "avgLen": 47.90491706499476,
+ "docShardSize": 5000,
+ "docShards": 333,
+ "postShards": 128,
+ "categories": [
+  "Countries",
+  "Encyclopedia",
+  "Dictionary",
+  "Places",
+  "Organisations",
+  "Education",
+  "People",
+  "Transport",
+  "Buildings",
+  "Nature",
+  "Works",
+  "Science"
+ ],
+ "categoryCounts": {
+  "Countries": 28472,
+  "Encyclopedia": 88308,
+  "Dictionary": 117426,
+  "Places": 261572,
+  "Organisations": 44955,
+  "Education": 51422,
+  "People": 748549,
+  "Transport": 52640,
+  "Buildings": 44994,
+  "Nature": 89996,
+  "Works": 134958,
+  "Science": 119
+ },
+ "sources": [
+  {
+   "code": "wordnet",
+   "name": "WordNet 3.0, Princeton University",
+   "url": "https://wordnet.princeton.edu/",
+   "license": "WordNet 3.0 licence (Princeton University)"
+  },
+  {
+   "code": "squad",
+   "name": "Wikipedia: {kw0} (via SQuAD 2.0)",
+   "url": "https://en.wikipedia.org/wiki/{kw0_}",
+   "license": "CC BY-SA 4.0"
+  },
+  {
+   "code": "factbook",
+   "name": "CIA World Factbook",
+   "url": "https://www.cia.gov/the-world-factbook/countries/{kw0-}/",
+   "license": "Public domain (CIA World Factbook, CC0 via factbook.json)"
+  },
+  {
+   "code": "dbpedia",
+   "name": "Wikipedia: {topic} (via DBpedia 2014)",
+   "url": "https://en.wikipedia.org/wiki/{topic_}",
+   "license": "CC BY-SA 3.0"
+  },
+  {
+   "code": "wikibio",
+   "name": "Wikipedia: {topic} (via WikiBio, capitalisation restored automatically)",
+   "url": "https://en.wikipedia.org/wiki/{topic_}",
+   "license": "CC BY-SA 3.0"
+  },
+  {
+   "code": "csc",
+   "name": "Countries States Cities Database (dr5hn)",
+   "url": "https://github.com/dr5hn/countries-states-cities-database",
+   "license": "ODbL 1.0"
+  },
+  {
+   "code": "simplewiki",
+   "name": "Simple English Wikipedia: {kw0}",
+   "url": "https://simple.wikipedia.org/wiki/{kw0_}",
+   "license": "CC BY-SA 3.0"
+  },
+  {
+   "code": "openflights",
+   "name": "OpenFlights airport database",
+   "url": "https://openflights.org/data",
+   "license": "ODbL 1.0"
+  },
+  {
+   "code": "universities",
+   "name": "University Domains List (Hipo)",
+   "url": "https://github.com/Hipo/university-domains-list",
+   "license": "MIT"
+  },
+  {
+   "code": "elements",
+   "name": "Wikipedia: {kw0} (via Periodic-Table-JSON)",
+   "url": "https://en.wikipedia.org/wiki/{kw0_}",
+   "license": "CC BY-SA 3.0"
+  }
+ ],
+ "encoding": "gzip",
+ "ext": ".bin"
+}
