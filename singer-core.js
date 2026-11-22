@@ -20,7 +20,7 @@
   }
   // frame-wise pitch: returns {f0[], voiced[], hop}
   function pitchTrack(x) {
-    const hop = 110, win = 900, minL = Math.floor(FS / 450), maxL = Math.floor(FS / 65), frames = Math.max(1, Math.floor((x.length - win) / hop) + 1);
+    const hop = 110, win = 700, minL = Math.floor(FS / 420), maxL = Math.floor(FS / 70), frames = Math.max(1, Math.floor((x.length - win) / hop) + 1);
     let peak = 0; for (let i = 0; i < x.length; i++) peak = Math.max(peak, Math.abs(x[i]));
     const f0 = new Float32Array(frames), voiced = new Uint8Array(frames), rmsA = new Float32Array(frames);
     for (let f = 0; f < frames; f++) {
@@ -31,7 +31,7 @@
       let best = 0, bl = 0;
       for (let L = minL; L <= maxL; L++) {
         let c = 0, e1 = 0, e2 = 0;
-        for (let i = 0; i < win - L && o + i + L < x.length; i += 2) { const a = x[o + i], b = x[o + i + L]; c += a * b; e1 += a * a; e2 += b * b; }
+        for (let i = 0; i < win - L && o + i + L < x.length; i += 3) { const a = x[o + i], b = x[o + i + L]; c += a * b; e1 += a * a; e2 += b * b; }
         const r = c / Math.sqrt(e1 * e2 + 1e-9);
         if (r > best) { best = r; bl = L; }
       }
@@ -44,18 +44,19 @@
   }
   // analysis marks: one per pitch period in voiced parts (on the waveform peak), every 5 ms elsewhere
   function marks(x, pt) {
-    const out = [], hop = pt.hop; let i = 0;
+    const out = [], hop = pt.hop; let i = 0, last = null;
     const at = s => Math.min(pt.f0.length - 1, Math.max(0, Math.floor(s / hop)));
+    const peakIn = (a, b) => { let best = a, bv = -Infinity; for (let k = Math.max(0, a); k < Math.min(x.length, b); k++) if (x[k] > bv) { bv = x[k]; best = k; } return best; };
     while (i < x.length) {
       const f = at(i);
       if (pt.voiced[f] && pt.f0[f] > 0) {
-        const P = Math.round(FS / pt.f0[f]); let best = i, bv = -1;
-        for (let k = i; k < Math.min(x.length, i + P); k++) if (Math.abs(x[k]) > bv) { bv = Math.abs(x[k]); best = k; }
-        if (out.length && out[out.length - 1].v && best - out[out.length - 1].i < P * 0.6) best = out[out.length - 1].i + P;
-        out.push({ i: best, p: P, v: 1 }); i = best + Math.round(P * 0.8);
-        // snap the next mark close to one period later
-        const nf = at(best + P); if (pt.voiced[nf]) { const P2 = Math.round(FS / (pt.f0[nf] || pt.f0[f])); let b2 = best + P2, v2 = -1; for (let k = best + Math.round(P2 * 0.8); k < Math.min(x.length, best + Math.round(P2 * 1.2)); k++) if (Math.abs(x[k]) > v2) { v2 = Math.abs(x[k]); b2 = k; } i = b2; }
-      } else { out.push({ i, p: 110, v: 0 }); i += 110; }
+        const P = FS / pt.f0[f];
+        // continue a run of marks exactly one period on, nudged to the nearest positive peak; start a run on the biggest peak
+        const m = last && last.v && i - last.i < P * 1.5 ? peakIn(Math.round(last.i + P * 0.88), Math.round(last.i + P * 1.12)) : peakIn(i, Math.round(i + P));
+        out.push(last = { i: m, p: Math.round(P), v: 1 }); i = m + 1;
+        if (m + P * 0.88 >= x.length) break;
+        i = Math.round(m + P * 0.88);
+      } else { out.push(last = { i, p: 110, v: 0 }); i += 110; }
     }
     return out;
   }
@@ -90,7 +91,7 @@
     for (let k = 0; k < ms.length; k++) { const end = k + 1 < ms.length ? ms[k + 1].i : s1, dur = end - tin, f = ms[k].v ? fv : fu; pieces.push([tout, tin, f]); tout += dur * f; tin = end; }
     const toIn = t => { let lo = 0, hi = pieces.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (pieces[mid][0] <= t) lo = mid; else hi = mid - 1; } const pc = pieces[lo]; return pc[1] + (t - pc[0]) / pc[2]; };
     let ts = 0, k = 0;
-    const vibStart = Math.min(0.25, len / FS * 0.35) * FS, vibDepth = opts.vibrato == null ? 0.011 : opts.vibrato;
+    const vibStart = 0.4 * FS, vibDepth = opts.vibrato == null ? 0.0035 : opts.vibrato;
     while (ts < len) {
       const ti = toIn(ts);
       while (k + 1 < ms.length && Math.abs(ms[k + 1].i - ti) <= Math.abs(ms[k].i - ti)) k++;
@@ -98,16 +99,15 @@
       let Ps;
       if (m.v) { const vib = ts > vibStart ? 1 + vibDepth * Math.sin(2 * Math.PI * 5.4 * (ts - vibStart) / FS) * Math.min(1, (ts - vibStart) / (0.2 * FS)) : 1; Ps = FS / (hz * vib); }
       else Ps = 110;
-      const half = m.v ? Math.round(Math.max(m.p, Ps)) : 110;
+      const half = m.v ? Math.max(20, Math.round(Math.min(m.p, Ps * 2))) : 110, gain = m.v ? Math.min(1.25, Ps / half) : 1;
       for (let j = -half; j < half; j++) {
         const src = m.i + j, dst = Math.round(ts) + j;
         if (src < 0 || src >= x.length || dst < 0 || dst >= len) continue;
-        const w = 0.5 + 0.5 * Math.cos(Math.PI * j / half);
-        out[dst] += x[src] * w; wsum[dst] += w;
+        out[dst] += x[src] * gain * (0.5 + 0.5 * Math.cos(Math.PI * j / half));
       }
       ts += Ps;
     }
-    for (let i = 0; i < len; i++) if (wsum[i] > 1) out[i] /= wsum[i];
+    void wsum;
     // gentle fades so syllables join without clicks
     const fi = Math.min(110, len >> 3), fo = Math.min(660, len >> 2);
     for (let i = 0; i < fi; i++) out[i] *= i / fi;
@@ -124,6 +124,31 @@
       const x = raw ? decodeWav(raw) : new Float32Array(0), pt = pitchTrack(x), r = { x, pt, mk: marks(x, pt) };
       if (cache.size > 600) cache.clear();
       cache.set(key, r); return r;
+    }
+    function renderEvents(events, opts, t0, track) {
+      for (const e of events) {
+        const clean = String(e.w).toLowerCase().replace(/[^\p{L}\p{N}'’-]+/gu, "");
+        if (!clean) continue;
+        const W = word(clean, opts); if (!W.x.length) continue;
+        const segs = splitSyllables(W.x, Math.max(1, e.n), W.pt), seg = segs[Math.min(e.si, segs.length - 1)];
+        const len = Math.max(400, Math.round(e.d * FS)), hz = 440 * Math.pow(2, (e.m - 69) / 12);
+        const y = psola(W.x, seg[0], seg[1], W.pt, W.mk, hz, len, opts), o = Math.round((e.t - t0) * FS);
+        for (let i = 0; i < y.length && o + i < track.length; i++) if (o + i >= 0) track[o + i] += y[i];
+      }
+      for (let i = 0; i < track.length; i++) { const v = track[i] * 1.15; track[i] = v > 0.9 || v < -0.9 ? Math.tanh(v) : v; }
+      return track;
+    }
+    // render a line or two at a time so singing can start straight away; cb(chunk, startSeconds)
+    function renderChunks(events, opts, cb) {
+      events = events.slice().sort((a, b) => a.t - b.t);
+      let i = 0;
+      while (i < events.length) {
+        let j = i + 1;
+        while (j < events.length && j - i < 12 && events[j].t - (events[j - 1].t + events[j - 1].d) < 0.3) j++;
+        const part = events.slice(i, j), t0 = Math.max(0, part[0].t - 0.02), end = part.reduce((m, e) => Math.max(m, e.t + e.d), 0) + 0.3;
+        cb(renderEvents(part, opts, t0, new Float32Array(Math.ceil((end - t0) * FS))), t0);
+        i = j;
+      }
     }
     function renderTrack(events, opts) {
       opts = opts || {};
@@ -143,7 +168,7 @@
       if (peak > 0) { const g = 0.85 / peak; for (let i = 0; i < track.length; i++) track[i] *= g; }
       return track;
     }
-    return { renderTrack, FS, _word: word, _psola: psola, _split: splitSyllables };
+    return { renderTrack, renderChunks, FS, _word: word, _psola: psola, _split: splitSyllables };
   }
   root.BuddhiSingerCore = { makeSinger, decodeWav, FS };
   if (typeof module !== "undefined" && module.exports) module.exports = root.BuddhiSingerCore;
