@@ -40,6 +40,10 @@ Princeton University and LICENSEE agrees to preserve same.
 
 3) CIA World Factbook, via the factbook.json project (github.com/factbook/factbook.json). Public domain; factbook.json is released under CC0 1.0.
 
+4) OpenStax textbooks — Rice University (openstax.org). Sections and glossary definitions from 59 free textbooks. Each book is licensed by OpenStax under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) or CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/); the passage names its book. Text was converted from the books' CNXML sources (github.com/openstax) and shortened; figures, maths and exercises were left out. OpenStax and Rice University do not endorse B.U.D.D.H.I. Download the original books free at https://openstax.org .
+
+5) OpenTriviaQA — github.com/uberspot/OpenTriviaQA, licensed CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Each quiz passage is one question with its correct answer.
+
 === Desktop app runtime ===
 
 The desktop app (BUDDHI.exe) contains Node.js 22.23.5 (official build signed by the OpenJS Foundation). Node.js licence follows.

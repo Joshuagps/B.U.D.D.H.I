@@ -1,10 +1,10 @@
 {
  "format": 2,
- "total": 1663411,
+ "total": 1752860,
  "idBase": 100,
- "avgLen": 47.90491706499476,
+ "avgLen": 49.98912406010748,
  "docShardSize": 5000,
- "docShards": 333,
+ "docShards": 351,
  "postShards": 128,
  "categories": [
   "Countries",
@@ -18,7 +18,14 @@
   "Buildings",
   "Nature",
   "Works",
-  "Science"
+  "Science",
+  "Society",
+  "Mathematics",
+  "Technology",
+  "Ideas",
+  "History",
+  "Language",
+  "Quiz"
  ],
  "categoryCounts": {
   "Countries": 28472,
@@ -26,13 +33,20 @@
   "Dictionary": 117426,
   "Places": 261572,
   "Organisations": 44955,
-  "Education": 51422,
+  "Education": 52551,
   "People": 748549,
   "Transport": 52640,
   "Buildings": 44994,
   "Nature": 89996,
   "Works": 134958,
-  "Science": 119
+  "Science": 19418,
+  "Society": 10558,
+  "Mathematics": 4310,
+  "Technology": 947,
+  "Ideas": 904,
+  "History": 2100,
+  "Language": 1057,
+  "Quiz": 49145
  },
  "sources": [
   {
@@ -94,6 +108,18 @@
    "name": "Wikipedia: {kw0} (via Periodic-Table-JSON)",
    "url": "https://en.wikipedia.org/wiki/{kw0_}",
    "license": "CC BY-SA 3.0"
+  },
+  {
+   "code": "openstax",
+   "name": "OpenStax free textbooks (Rice University)",
+   "url": "https://openstax.org/subjects",
+   "license": "CC BY 4.0 / CC BY-NC-SA 4.0 (per book)"
+  },
+  {
+   "code": "trivia",
+   "name": "OpenTriviaQA",
+   "url": "https://github.com/uberspot/OpenTriviaQA",
+   "license": "CC BY-SA 4.0"
   }
  ],
  "encoding": "gzip",
