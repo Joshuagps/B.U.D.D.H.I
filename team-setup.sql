@@ -29,6 +29,11 @@ create table if not exists public.buddhi_room_messages (
 );
 create index if not exists buddhi_room_messages_room_id on public.buddhi_room_messages (room_id, id);
 
+-- newer Supabase projects don't give signed-in users access to new tables automatically
+grant select on public.buddhi_rooms to authenticated;
+grant select, delete on public.buddhi_room_members to authenticated;
+grant select, insert, delete on public.buddhi_room_messages to authenticated;
+
 alter table public.buddhi_rooms enable row level security;
 alter table public.buddhi_room_members enable row level security;
 alter table public.buddhi_room_messages enable row level security;
