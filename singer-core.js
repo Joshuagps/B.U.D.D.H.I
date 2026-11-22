@@ -78,61 +78,83 @@
     for (let k = 0; k < n; k++) segs.push([edges[k], edges[k + 1]]);
     return segs;
   }
-  /* TD-PSOLA: segment x[s0..s1] -> out of `len` samples at frequency hz (with vibrato), consonants keep their length */
-  function psola(x, s0, s1, pt, mk, hz, len, opts) {
-    const out = new Float32Array(len), wsum = new Float32Array(len);
-    const ms = mk.filter(m => m.i >= s0 && m.i < s1); if (!ms.length) return out;
-    const segLen = s1 - s0; let U = 0;
-    for (const m of ms) if (!m.v) U += m.p;
-    U = Math.min(U, segLen * 0.9); const V = Math.max(1, segLen - U);
-    const fu = len > U ? 1 : len / segLen, fv = len > U ? (len - U) / V : len / segLen;
-    // map output time -> input time (unvoiced parts at natural speed, voiced parts stretched)
-    const pieces = []; let tin = s0, tout = 0;
-    for (let k = 0; k < ms.length; k++) { const end = k + 1 < ms.length ? ms[k + 1].i : s1, dur = end - tin, f = ms[k].v ? fv : fu; pieces.push([tout, tin, f]); tout += dur * f; tin = end; }
-    const toIn = t => { let lo = 0, hi = pieces.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (pieces[mid][0] <= t) lo = mid; else hi = mid - 1; } const pc = pieces[lo]; return pc[1] + (t - pc[0]) / pc[2]; };
-    let ts = 0, k = 0;
-    const vibStart = 0.4 * FS, vibDepth = opts.vibrato == null ? 0.0035 : opts.vibrato;
-    while (ts < len) {
-      const ti = toIn(ts);
-      while (k + 1 < ms.length && Math.abs(ms[k + 1].i - ti) <= Math.abs(ms[k].i - ti)) k++;
-      const m = ms[k];
-      let Ps;
-      if (m.v) { const vib = ts > vibStart ? 1 + vibDepth * Math.sin(2 * Math.PI * 5.4 * (ts - vibStart) / FS) * Math.min(1, (ts - vibStart) / (0.2 * FS)) : 1; Ps = FS / (hz * vib); }
-      else Ps = 110;
-      const half = m.v ? Math.max(20, Math.round(Math.min(m.p, Ps * 2))) : 110, gain = m.v ? Math.min(1.25, Ps / half) : 1;
-      for (let j = -half; j < half; j++) {
-        const src = m.i + j, dst = Math.round(ts) + j;
-        if (src < 0 || src >= x.length || dst < 0 || dst >= len) continue;
-        out[dst] += x[src] * gain * (0.5 + 0.5 * Math.cos(Math.PI * j / half));
+  /* TD-PSOLA for a whole word: the word's syllables (input segments) are laid onto output spans, each with its own note.
+     Consonants keep their natural length, vowels stretch to fill the note, the pitch glides between notes, and each
+     output grain blends the two nearest input periods so held notes stay smooth. Returns one continuous buffer. */
+  function psolaWord(x, pt, mk, segs, spans, opts) {
+    const total = spans.reduce((a, sp) => a + sp.len, 0), out = new Float32Array(total);
+    const vibDepth = opts.vibrato == null ? 0 : opts.vibrato;
+    let base = 0, prevHz = 0;
+    for (let k = 0; k < spans.length; k++) {
+      const [s0, s1] = segs[Math.min(k, segs.length - 1)], len = spans[k].len, hz = spans[k].hz;
+      const ms = mk.filter(m => m.i >= s0 && m.i < s1);
+      if (ms.length) {
+        const segLen = s1 - s0; let U = 0; for (const m of ms) if (!m.v) U += m.p;
+        U = Math.min(U, segLen * 0.9); const V = Math.max(1, segLen - U);
+        const fu = len > U ? 1 : len / segLen, fv = len > U ? (len - U) / V : len / segLen;
+        const pieces = []; let tin = s0, tout = 0;
+        for (let q = 0; q < ms.length; q++) { const end = q + 1 < ms.length ? ms[q + 1].i : s1, f = ms[q].v ? fv : fu; pieces.push([tout, tin, f]); tout += (end - tin) * f; tin = end; }
+        const toIn = t => { let lo = 0, hi = pieces.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (pieces[mid][0] <= t) lo = mid; else hi = mid - 1; } const pc = pieces[lo]; return pc[1] + (t - pc[0]) / pc[2]; };
+        const glide = prevHz ? Math.min(0.05 * FS, len * 0.25) : 0, vibStart = 0.45 * FS;
+        let ts = 0, q = 0;
+        while (ts < len) {
+          const ti = toIn(ts);
+          while (q + 1 < ms.length && ms[q + 1].i <= ti) q++;
+          const a = ms[q], b = ms[q + 1], frac = b && a.v && b.v && b.i > a.i ? Math.max(0, Math.min(1, (ti - a.i) / (b.i - a.i))) : 0;
+          let Ps;
+          if (a.v) {
+            let f = glide && ts < glide ? prevHz * Math.pow(hz / prevHz, ts / glide) : hz;
+            if (ts > vibStart) f *= 1 + vibDepth * Math.sin(2 * Math.PI * 5.2 * (ts - vibStart) / FS) * Math.min(1, (ts - vibStart) / (0.25 * FS));
+            Ps = FS / f;
+          } else Ps = 110;
+          const dst0 = base + Math.round(ts);
+          const addGrain = (m, w) => {
+            if (w <= 0) return;
+            const half = m.v ? Math.max(20, Math.round(Math.min(m.p, Ps * 2))) : 110, gain = (m.v ? Math.min(1.25, Ps / half) : 1) * w;
+            for (let j = -half; j < half; j++) { const src = m.i + j, dst = dst0 + j; if (src < 0 || src >= x.length || dst < 0 || dst >= total) continue; out[dst] += x[src] * gain * (0.5 + 0.5 * Math.cos(Math.PI * j / half)); }
+          };
+          addGrain(a, 1 - frac); if (frac > 0) addGrain(b, frac);
+          ts += Ps;
+        }
       }
-      ts += Ps;
+      base += len; prevHz = hz;
     }
-    void wsum;
-    // gentle fades so syllables join without clicks
-    const fi = Math.min(110, len >> 3), fo = Math.min(660, len >> 2);
+    // fades only at the very start and end of the word
+    const fi = Math.min(88, total >> 4), fo = Math.min(330, total >> 3);
     for (let i = 0; i < fi; i++) out[i] *= i / fi;
-    for (let i = 0; i < fo; i++) out[len - 1 - i] *= i / fo;
+    for (let i = 0; i < fo; i++) out[total - 1 - i] *= i / fo;
     return out;
   }
-  function makeSinger(meSpeak) {
-    const cache = new Map();
+  // engine: the meSpeak object, or a function returning a fresh-enough one (eSpeak breaks after ~80 calls, so the worker restarts it)
+  function makeSinger(engine) {
+    const getEngine = typeof engine === "function" ? engine : () => engine, cache = new Map();
     function word(w, opts) {
       const key = opts.voice + "|" + opts.variant + "|" + w;
       if (cache.has(key)) return cache.get(key);
       let raw = null;
-      try { raw = meSpeak.speak(w, { rawdata: "array", speed: 135, pitch: opts.variant && opts.variant[0] === "f" ? 55 : 45, wordgap: 0, variant: opts.variant || undefined, voice: opts.voice }); } catch (e) { raw = null; }
+      const say = restart => { try { const r = getEngine(restart).speak(w, { rawdata: "array", speed: 135, pitch: opts.variant && /f/.test(opts.variant) ? 55 : 45, wordgap: 0, variant: opts.variant || undefined, voice: opts.voice }); return r && r.length > 1000 ? r : null; } catch (e) { return null; } };
+      raw = say(false) || say(true);
       const x = raw ? decodeWav(raw) : new Float32Array(0), pt = pitchTrack(x), r = { x, pt, mk: marks(x, pt) };
       if (cache.size > 600) cache.clear();
       cache.set(key, r); return r;
     }
-    function renderEvents(events, opts, t0, track) {
+    function wordGroups(events) {
+      const groups = []; let cur = null;
       for (const e of events) {
-        const clean = String(e.w).toLowerCase().replace(/[^\p{L}\p{N}'’-]+/gu, "");
+        if (cur && e.w === cur[0].w && e.si === cur[cur.length - 1].si + 1 && e.si < e.n) cur.push(e);
+        else { cur = [e]; groups.push(cur); }
+      }
+      return groups;
+    }
+    function renderEvents(events, opts, t0, track) {
+      for (const g of wordGroups(events)) {
+        const clean = String(g[0].w).toLowerCase().replace(/[^\p{L}\p{N}'’-]+/gu, "");
         if (!clean) continue;
         const W = word(clean, opts); if (!W.x.length) continue;
-        const segs = splitSyllables(W.x, Math.max(1, e.n), W.pt), seg = segs[Math.min(e.si, segs.length - 1)];
-        const len = Math.max(400, Math.round(e.d * FS)), hz = 440 * Math.pow(2, (e.m - 69) / 12);
-        const y = psola(W.x, seg[0], seg[1], W.pt, W.mk, hz, len, opts), o = Math.round((e.t - t0) * FS);
+        const allSegs = splitSyllables(W.x, Math.max(1, g[0].n), W.pt), segs = g.map(e => allSegs[Math.min(e.si, allSegs.length - 1)]);
+        // each syllable fills the time until the next syllable of the same word (legato), the last one its own length
+        const spans = g.map((e, k) => ({ len: Math.max(400, Math.round(((k + 1 < g.length ? g[k + 1].t : e.t + e.d) - e.t) * FS)), hz: 440 * Math.pow(2, (e.m - 69) / 12) }));
+        const y = psolaWord(W.x, W.pt, W.mk, segs, spans, opts), o = Math.round((g[0].t - t0) * FS);
         for (let i = 0; i < y.length && o + i < track.length; i++) if (o + i >= 0) track[o + i] += y[i];
       }
       for (let i = 0; i < track.length; i++) { const v = track[i] * 1.15; track[i] = v > 0.9 || v < -0.9 ? Math.tanh(v) : v; }
@@ -153,22 +175,9 @@
     function renderTrack(events, opts) {
       opts = opts || {};
       const end = events.reduce((m, e) => Math.max(m, e.t + e.d), 0) + 1;
-      const track = new Float32Array(Math.ceil(end * FS));
-      for (const e of events) {
-        const clean = String(e.w).toLowerCase().replace(/[^\p{L}\p{N}'’-]+/gu, "");
-        if (!clean) continue;
-        const W = word(clean, opts); if (!W.x.length) continue;
-        const segs = splitSyllables(W.x, Math.max(1, e.n), W.pt), seg = segs[Math.min(e.si, segs.length - 1)];
-        const len = Math.max(400, Math.round(e.d * FS)), hz = 440 * Math.pow(2, (e.m - 69) / 12);
-        const y = psola(W.x, seg[0], seg[1], W.pt, W.mk, hz, len, opts);
-        const o = Math.round(e.t * FS);
-        for (let i = 0; i < y.length && o + i < track.length; i++) track[o + i] += y[i];
-      }
-      let peak = 0; for (let i = 0; i < track.length; i++) peak = Math.max(peak, Math.abs(track[i]));
-      if (peak > 0) { const g = 0.85 / peak; for (let i = 0; i < track.length; i++) track[i] *= g; }
-      return track;
+      return renderEvents(events, opts, 0, new Float32Array(Math.ceil(end * FS)));
     }
-    return { renderTrack, renderChunks, FS, _word: word, _psola: psola, _split: splitSyllables };
+    return { renderTrack, renderChunks, FS, _word: word, _split: splitSyllables };
   }
   root.BuddhiSingerCore = { makeSinger, decodeWav, FS };
   if (typeof module !== "undefined" && module.exports) module.exports = root.BuddhiSingerCore;
