@@ -1,0 +1,115 @@
+{
+ "source": "OpenTriviaQA (github.com/uberspot/OpenTriviaQA), CC BY-SA 4.0",
+ "categories": [
+  {
+   "code": "animals",
+   "name": "Animals",
+   "count": 1364
+  },
+  {
+   "code": "brain-teasers",
+   "name": "Brain teasers",
+   "count": 190
+  },
+  {
+   "code": "celebrities",
+   "name": "Celebrities",
+   "count": 3157
+  },
+  {
+   "code": "entertainment",
+   "name": "Entertainment",
+   "count": 279
+  },
+  {
+   "code": "for-kids",
+   "name": "For kids",
+   "count": 751
+  },
+  {
+   "code": "general",
+   "name": "General knowledge",
+   "count": 3275
+  },
+  {
+   "code": "geography",
+   "name": "Geography",
+   "count": 839
+  },
+  {
+   "code": "history",
+   "name": "History",
+   "count": 1629
+  },
+  {
+   "code": "hobbies",
+   "name": "Hobbies",
+   "count": 1241
+  },
+  {
+   "code": "humanities",
+   "name": "Humanities",
+   "count": 1093
+  },
+  {
+   "code": "literature",
+   "name": "Literature",
+   "count": 1263
+  },
+  {
+   "code": "movies",
+   "name": "Movies",
+   "count": 4233
+  },
+  {
+   "code": "music",
+   "name": "Music",
+   "count": 5349
+  },
+  {
+   "code": "newest",
+   "name": "Mixed (newest)",
+   "count": 3000
+  },
+  {
+   "code": "people",
+   "name": "People",
+   "count": 2734
+  },
+  {
+   "code": "rated",
+   "name": "Mixed (top rated)",
+   "count": 2164
+  },
+  {
+   "code": "religion-faith",
+   "name": "Religion & faith",
+   "count": 637
+  },
+  {
+   "code": "science-technology",
+   "name": "Science & technology",
+   "count": 2484
+  },
+  {
+   "code": "sports",
+   "name": "Sports",
+   "count": 2837
+  },
+  {
+   "code": "television",
+   "name": "Television",
+   "count": 5225
+  },
+  {
+   "code": "video-games",
+   "name": "Video games",
+   "count": 598
+  },
+  {
+   "code": "world",
+   "name": "World",
+   "count": 4849
+  }
+ ]
+}
