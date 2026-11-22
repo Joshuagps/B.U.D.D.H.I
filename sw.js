@@ -1,7 +1,7 @@
 /* B.U.D.D.H.I. offline support: keeps the app and every knowledge file it has opened, so it works without internet. */
-const VERSION = "20261122133721";
+const VERSION = "20261122134951";
 const APP = "buddhi-app-" + VERSION, DATA = "buddhi-data-pack4";
-const SHELL = ["./", "index.html", "config.js", "starter.js", "i18n.js", "engine.js", "music.js", "quiz.js", "licenses.txt", "webllm-worker.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "pack/manifest.json", "pack/meta.bin", "quiz/index.json"];
+const SHELL = ["./", "index.html", "config.js", "starter.js", "i18n.js", "engine.js", "music.js", "quiz.js", "team.js", "licenses.txt", "webllm-worker.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "pack/manifest.json", "pack/meta.bin", "quiz/index.json"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(APP).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("buddhi-") && k !== APP && k !== DATA && !k.startsWith("webllm")).map(k => caches.delete(k)))).then(() => self.clients.claim()));
